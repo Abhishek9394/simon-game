@@ -4,146 +4,137 @@
 // Enjoyed a lot while making the game.
 
 /****************************************/
+
 var keys = ["red", "green", "yellow", "blue"];
 var computerArrayRecord = [];
 var userArrayRecord = [];
 var buttons = document.querySelectorAll(".btn");
 var startButton = document.querySelector(".s-btn");
 var display = document.querySelector(".display");
-/**************/
-var level = 0;
-var flag = 0;
-var isGameStarted = false;
-var score = 0;
-var counter = 0;
+var scoreDisplay = document.querySelector(".score");
+var highScoreDisplay = document.querySelector(".high-score");
+var muteButton = document.querySelector(".mute-btn");
+var themeToggle = document.querySelector(".theme-toggle");
+var difficultySelect = document.querySelector(".difficulty");
+var level = 0, score = 0, counter = 0, flag = 0;
+var isGameStarted = false, isMuted = false;
+var highScore = localStorage.getItem("highScore") || 0;
+highScoreDisplay.innerHTML = "High Score: " + highScore;
+var timer;
 
-/**************/
-
+// Start the game
 function startGame() {
-    if (isGameStarted == false) {
-        document.body.style.backgroundColor = "#2A2550";
-        display.innerHTML = "Remember the blinked colors and repeat them from first blink."
-    }
-    while (counter == 0) {
+    if (!isGameStarted) {
+        document.body.classList.remove("game-over");
+        display.innerHTML = "Remember the pattern and repeat it!";
         userArrayRecord = [];
-        $(".score").text("Score: 0");
+        scoreDisplay.textContent = "Score: 0";
         counter++;
+        score = 0;
+        isGameStarted = true;
+        startButton.style.display = "none";
+        nextSequence();
     }
-    isGameStarted = true;
-    var randomKey = Math.floor(Math.random() * 4);
-    playSound(keys[randomKey]);
-    $("." + keys[randomKey]).fadeIn(100).fadeOut(100).fadeIn(100);
-    computerArrayRecord.push(keys[randomKey]);
-    console.log('computer', computerArrayRecord);
-    startButton.style.display = "none"
 }
 
-/*****************************************/
-
-for (let i = 0; i < 4; i++) {
-    buttons[i].addEventListener("click", function(e) {
-        if (isGameStarted) {
-            userArrayRecord.push(e.target.innerHTML);
-            playSound(e.target.innerHTML);
-            selectedAnimation(e.target.innerHTML);
-            instantChecker();
-            if (computerArrayRecord.length == userArrayRecord.length) {
-                gameManager();
-            }
-        } else {
-            userArrayRecord = []; // disbale click before click start button.
-        }
-
-
-    });
-}
-
-/****************************************/
-
-
-function gameManager() {
-    for (let i = 0; i < computerArrayRecord.length; i++) {
-        if (computerArrayRecord[i] == userArrayRecord[i]) {
-            // console.log("correct! index: ",computerArrayRecord[i]);
-        } else {
-            flag++;
-        }
-    }
-    if (flag != 0) {
-        console.log("gameOver!");
-        gameOver();
-    } else {
-        console.log("Level Up!");
-        gameContinue()
-    }
+function nextSequence() {
     userArrayRecord = [];
-}
-
-/**************************************/
-
-function gameOver() {
-    // display game over
-    computerArrayRecord = [];
-    level = 0;
-    flag = 0;
-    isGameStarted = false;
-    counter = 0;
-    score = 0;
-    playSound("wrong")
-    display.innerHTML = "Game Over!";
-    document.body.style.backgroundColor = 'red';
-    startButton.style.display = "";
-    startButton.innerHTML = "Restart Game!"
-    for (let i = 0; i < 4; i++) {
-        buttons[i].style.background = "";
-    }
-}
-
-/************************************/
-
-function gameContinue() {
-
     level++;
     display.innerHTML = "Level: " + level;
-
-    setTimeout(function() {
-
-        startGame();
-
-    }, 1000);
-
+    var randomKey = keys[Math.floor(Math.random() * 4)];
+    playSound(randomKey);
+    animateButton(randomKey);
+    computerArrayRecord.push(randomKey);
+    startTimer();
 }
 
-/************************************/
+
+function startTimer() {
+    clearTimeout(timer);
+    var difficulty = difficultySelect.value;
+    var timeLimit = difficulty === "easy" ? 5 : difficulty === "medium" ? 3 : 2;
+    timer = setTimeout(gameOver, timeLimit * 1000);
+}
 
 
-function instantChecker() {
-    for (let i = 0; i < userArrayRecord.length; i++) {
-        if (computerArrayRecord[i] == userArrayRecord[i]) {
-            score++;
-            $(".score").text("Score: " + score);
-            console.log("Correct enter!")
-        } else {
-            console.log("Game Over!");
-            $(".score").text("Last Score: " + score);
-            gameOver();
+buttons.forEach(button => {
+    button.addEventListener("click", function (e) {
+        if (isGameStarted) {
+            var chosenColor = e.target.id;
+            userArrayRecord.push(chosenColor);
+            playSound(chosenColor);
+            animateButton(chosenColor);
+            checkAnswer(userArrayRecord.length - 1);
+        }
+    });
+});
+
+
+function checkAnswer(index) {
+    if (userArrayRecord[index] === computerArrayRecord[index]) {
+        score++;
+        scoreDisplay.textContent = "Score: " + score;
+        if (userArrayRecord.length === computerArrayRecord.length) {
+            setTimeout(nextSequence, 1000);
+        }
+    } else {
+        gameOver();
+    }
+}
+
+
+function gameOver() {
+    document.body.classList.add("game-over");
+    playSound("wrong");
+    display.innerHTML = "Game Over! Final Score: " + score;
+    isGameStarted = false;
+    startButton.style.display = "block";
+    startButton.innerHTML = "Restart Game";
+    computerArrayRecord = [];
+    level = 0;
+    counter = 0;
+    clearTimeout(timer);
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem("highScore", highScore);
+        highScoreDisplay.textContent = "High Score: " + highScore;
+    }
+}
+
+
+function playSound(name) {
+    if (!isMuted) {
+        try {
+            var audio = new Audio(`sounds/${name}.mp3`);
+            audio.play();
+        } catch (e) {
+            console.log("Audio error", e);
         }
     }
 }
 
-/************************************/
 
-function playSound(name) {
-    var audio = new Audio(`sounds/${name}.mp3`);
-    audio.play();
-    audio.currentTime = 0;
-};
-
-/*************************************/
-
-function selectedAnimation(colorName) {
-    $("." + colorName).addClass("selected");
-    setTimeout(function() {
-        $("." + colorName).removeClass("selected");
-    }, 100);
+function animateButton(color) {
+    var button = document.querySelector("#" + color);
+    button.classList.add("selected");
+    setTimeout(() => button.classList.remove("selected"), 200);
 }
+
+
+muteButton.addEventListener("click", function () {
+    isMuted = !isMuted;
+    muteButton.textContent = isMuted ? "Unmute" : "Mute";
+});
+
+
+themeToggle.addEventListener("click", function () {
+    document.body.classList.toggle("dark-mode");
+    themeToggle.textContent = document.body.classList.contains("dark-mode") ? "Light Mode" : "Dark Mode";
+});
+
+
+difficultySelect.addEventListener("change", function () {
+    display.innerHTML = "Difficulty set to " + difficultySelect.value;
+});
+
+startButton.addEventListener("click", startGame);
